@@ -69,15 +69,16 @@ import { Auth0Provider } from "@auth0/auth0-react";
 ...
 
 ReactDOM.render(
-    <TemplateMachineProvider>
-    ...
-     </TemplateMachineProvider>,
-     <Auth0Provider
-  domain="YOUR_DOMAIN"
-  clientId="YOUR_CLIENT_ID"
-  redirectUri={window.location.origin}
->
-  <App />
+    <Auth0Provider
+    domain="YOUR_DOMAIN"
+    clientId="YOUR_CLIENT_ID"
+    redirectUri={window.location.origin}
+    >
+        <Authenticated>
+            <TemplateMachineProvider>
+            ...
+            </TemplateMachineProvider>
+        </Authenticated>
 </Auth0Provider>
 ```
 
@@ -86,6 +87,32 @@ The Auth0Provider component takes the following props:
 - `redirectUri`: The URL to where you'd like to redirect your users after they authenticate with Auth0.
 
 `Auth0Provider` stores the authentication state of your users and the state of the SDK — whether Auth0 is ready to use or not. It also exposes helper methods to log in and log out your users, which you can access using the useAuth0() hook.
+
+The Authenticated is here to automaticly redirecxt the user to Auth0 when it's not logged.
+To do that:
+- Create a file `Authenticated.tsx` in `components`
+- Put the code below inside
+
+``` typescript
+import React from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+
+export const Authenticated: React.FC = ({ children }) => {
+    const { loginWithRedirect, user, isLoading } = useAuth0();
+
+    React.useEffect(() => {
+        const redirect = async () => {
+            if (!user && !isLoading) {
+                await loginWithRedirect();
+            }
+        }
+        redirect()
+    }, [isLoading])
+    return isLoading ? <span>Loading ...</span> : <>{children}</>;
+};
+```
+
+We used a React useEffect to automaticly redirect the user.
 
 ### Add Login to Your Application
 
