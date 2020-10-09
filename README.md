@@ -109,6 +109,8 @@ We used a React useEffect to automaticly redirect the user.
 
 ## Step 3: Secure your API
 
+See you on next workshop
+
 ## Step 4: Deploy your changes
 
 Adapt your CI to build front and api in parallel
