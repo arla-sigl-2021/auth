@@ -28,10 +28,9 @@ Now, we have credentials available in the settings tab of our application. For t
 
 Before starting to code, we need to configure the Callback URLs, Logout URLs, Allowed Web Origins.
 
-<!-- explain callback, logout and Allowed Web Origins -->
-You can put these 2 URLs:
+You can put these 2 URLs (with comma sperator):
 - http://localhost:3000
-- http://goupe<Number>.arla-sigl.fr
+- https://goupe<Number>.arla-sigl.fr
 
 The first will be use for local developpement and the second for our final app on yours server.
 
@@ -40,26 +39,18 @@ The first will be use for local developpement and the second for our final app o
 ### Install the Auth0 React SDK
 Auth0 provide an easy to use sdk for react.
 
-In first, we need to add it to our package.json:
-```json
-// package.json
-{
-    ...
-    "dependencies": {
-        "@auth0/auth0-react": "1.1.0",
-        ...
-    },
-}
+First we need to install auth0 react sdk:
+```
+npm i -save @auth0/auth0-react
 ```
 
-You can now import the sdk and start to configure the Àuth0Provider` component.
+You can now import the sdk and start to configure the `Auth0Provider` component.
 
 Under the hood, the Auth0 React SDK uses React Context to manage the authentication state of your users. One way to integrate Auth0 with your React app is to wrap your root component with an Auth0Provider that you can import from the SDK.
 
 In your `app.tsx`, add:
 - `import { Auth0Provider } from "@auth0/auth0-react";` with yours import
 - `Auth0Provider` configuration
-
 
 ```typescript
 ...
@@ -83,10 +74,12 @@ ReactDOM.render(
 ```
 
 The Auth0Provider component takes the following props:
-- `domain` and `clientId`: The values of these properties correspond to the "Domain" and "Client ID" values present under the "Settings" of the single-page application that you registered with Auth0.
+- `YOUR_DOMAIN` and `YOUR_CLIENT_ID`: The values of these properties correspond to the "Domain" and "Client ID" values present under the "Settings" of the single-page application that you registered with Auth0. (Be careful if you have a public repo to not pushed yours credentials)
 - `redirectUri`: The URL to where you'd like to redirect your users after they authenticate with Auth0.
 
 `Auth0Provider` stores the authentication state of your users and the state of the SDK — whether Auth0 is ready to use or not. It also exposes helper methods to log in and log out your users, which you can access using the useAuth0() hook.
+
+### Add Login to Your Application
 
 The Authenticated is here to automaticly redirecxt the user to Auth0 when it's not logged.
 To do that:
@@ -114,12 +107,8 @@ export const Authenticated: React.FC = ({ children }) => {
 
 We used a React useEffect to automaticly redirect the user.
 
-### Add Login to Your Application
-
-
 ## Step 3: Secure your API
-https://auth0.com/docs/quickstart/spa/react/02-calling-an-api
 
 ## Step 4: Deploy your changes
 
-
+Adapt your CI to build front and api in parallel
