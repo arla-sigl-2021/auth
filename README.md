@@ -32,7 +32,7 @@ Before starting to code, we need to configure the Callback URLs, Logout URLs, Al
 You can put these 2 URLs (with comma sperator):
 
 - http://localhost:3000
-- https://goupe<Number>.arla-sigl.fr
+- https://groupe<Number>.arla-sigl.fr
 
 The first will be use for local developpement and the second for our final app on yours server.
 
