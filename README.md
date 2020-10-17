@@ -31,8 +31,8 @@ Before starting to code, we need to configure the Callback URLs, Logout URLs, Al
 
 You can put these 2 URLs (with comma sperator):
 
-- http://localhost:3000
-- https://goupe<Number>.arla-sigl.fr
+- http://localhost:8080
+- https://groupe<Number>.arla-sigl.fr
 
 The first will be use for local developpement and the second for our final app on yours server.
 
@@ -263,6 +263,21 @@ app.get(
 
 That's it! You've secured your API. `jwtCheck` is a middleware that will check if the `Bearer` token is valid.
 
+You can try out to curl your API again, you should get an `Unauthorized` message:
+```sh
+curl http://localhost:3000/v1/help-request?page=1&limit=10
+# You should get an HTML containing:
+# UnauthorizedError: No authorization token was found
+```
+
+And if you wanna verify if giving a fake token would work, you can try (and make sure it fails!):
+```sh
+curl -H "Authorization: Bearer AFakeT0kenThatMeansNothingButIAmStillTrying" http://localhost:3000/v1/help-request?page=1&limite=10
+# You should get an HTML containing:
+# UnauthorizedError: jwt malformed
+```
+
+The only way to get a correct token is if you are authenticated thru the Login page of frontend.
 
 ### Adapt your frontend component in the frontend
 
@@ -277,29 +292,350 @@ Set the `audience` property of your `<Auth0Provider />` to your `API Identifier`
     cacheLocation="localstorage"
   >
 ```
+
 This will make sure the token you get after authentication has rights to access your API.
 
+## Step 4: Call your Secured API
 
-### Call you secured API from your frontend
+Sofar, you've been using `curl` to consume your web API.
 
-This flow will be demonstrate in class.
+In this section, you will consume your web API from your frontend code.
+
+What you need to do:
+- create your api call using [fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch)
+- call your API from a component
+
+### Create your api call
+
+Because you will use it at several places, you will create a seperate function to call any API route:
+```ts
+// From a new file inside frontend
+// e.g. ./src/utils/api.ts
+const API_ENDPOINT = process.env.API_ENDPOINT || "http://localhost:3000";
+
+export const callApi = (token?: string) => async (route: string) => {
+  if (token) {
+    const response = await fetch(`${API_ENDPOINT}${route}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await response.json();
+  } else throw new Error("no auth token");
+};
+```
+
+You are wrapping the `fetch` usage to make sure you're not forgetting the `Bearer` token.
+This is a curry function that you can call like 
+
+```ts
+callApi("<access_token>")('/v1/help-requests?page=1&limit=10')
+```
+
+You may have noticed `async` and `await` keywords. It's syntaxic sugar to replace many chain callbacks using the classic promise's `then` and `catch` keyword.
+
+Here is the version, totally identical, using `Promises`:
+
+```ts
+// ...
+const API_ENDPOINT = process.env.API_ENDPOINT || 'http://localhost:3000';
+
+export const callApi = (token?: string) => (route: string): Promise<any> => {
+  if (token) {
+    fetch(`${API_ENDPOINT}${route}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }).then(response => response.json())
+  } else throw new Error("no auth token");
+};
+```
+
+### Call your API from a component
+
+To try out your call, let's create a new `Button` which will consume the web API when the user clicks on it.
+
+Let's create this button on the `TemplateView2` component, instead of the dummy `+1` count button:
+
+```tsx
+// from frontend
+// e.g. src/components/TemplateView2.tsx
+export const TemplateView2: React.FC = () => {
+  const { getAccessTokenSilently } = useAuth0();
+
+  const [helpRequests, setHelpRequests] = React.useState<any[]>([]);
+  const [error, setError] = React.useState<any>();
+
+  const getHelpRequests = async () => {
+    const token = await getAccessTokenSilently();
+    try {
+      const data = await callApi(token)("/v1/help-request?page=1&limit=10");
+      setHelpRequests(data);
+    } catch (error) {
+      // something went wrong!
+      setError(error);
+    }
+  };
+
+  return (
+    <Grid container spacing={5}>
+      <Grid item xs={12}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => {
+            getHelpRequests();
+          }}
+        >
+          Load Requests
+        </Button>
+      </Grid>
+      <Grid item xs={12}>
+        {error ? (
+          <ClosableError onClickClose={() => setError(undefined)}>Something went wrong on our side...</ClosableError>
+        ) : (
+          <HelpRequestTable helpRequests={helpRequests} />
+        )}
+      </Grid>
+    </Grid>
+  );
+};
+```
+
+Where `HelpRequestTable` component is:
+```tsx
+const HelpRequestTable: React.FC<HelpRequestTableProps> = ({
+  helpRequests,
+}) => {
+  return (
+    <TableContainer component={Paper}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Help request ID</TableCell>
+            <TableCell align="right">Location</TableCell>
+            <TableCell align="right">Description</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {helpRequests.map((hr, index) => (
+            <TableRow key={index}>
+              <TableCell component="th" scope="row">
+                {hr.id}
+              </TableCell>
+              <TableCell align="right">{hr.location}</TableCell>
+              <TableCell align="right">{hr.description}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+};
+```
+And `ClosableError` component is:
+```tsx
+const ClosableError: React.FC<ClosableErrorProps> = ({ onClickClose, children }) => (
+  <Alert
+    severity="error"
+    action={
+      <IconButton
+        aria-label="close"
+        color="inherit"
+        size="small"
+        onClick={() => onClickClose()}
+      >
+        <CloseIcon fontSize="inherit" />
+      </IconButton>
+    }
+  >
+    {children}
+  </Alert>
+);
+```
+
+Once setted, navigate to view 2 and click on the `Load requests` button:
+![load-help-requests](img/load-requests.gif)
+
+You can inspect your page and check `Network` tab. You should see your API call (as a XHR request) when clicking on the button. Inside the header of the request, you should see the access token in the request's header `Authorization: Bearer <YOUR ACCESS TOKEN>`:
+![inspect-bearer](img/bearer-in-request.gif)
+
+
+> Note: by copying this Access token from the http call, you can try out again with curl, and see that it works:
+`curl -H "Authorization: Bearer <YOUR ACCESS TOKEN>" http://localhost:3000/v1/help-request\?page\=1\&limit\=10 `
+
+Now, you may have notice that the your new `TemplateView2` component is also handling errors.
+
+Let's `throw` an error inside the `try` clause of `getHelpRequests` function, to check how the error handling behaves:
+```tsx
+// from frontend
+// e.g. src/components/TemplateView2.tsx
+export const TemplateView2: React.FC = () => {
+  // ...
+  const getHelpRequests = async () => {
+    const token = await getAccessTokenSilently();
+    try {
+      throw new Error("BOOM!");
+      //...
+    } catch (error) {
+      // something went wrong!
+      setError(error);
+    }
+  };
+
+  return // ...
+};
+```
+The `throw new Error("BOOM!");` should now change the behaviour when user clicks on `Load Requests` button:
+![error-handling](img/error-handling.gif)
 
 ## Step 5: Adapt your build for production
 
-You are currently using `http://localhost:3000` for your `API_ENDPOINT`.
-It is correct for when you're developping, but on production, you need to use `https://api.groupeXX.arla-sigl.fr` for your `API_ENDPOINT`.
+You may have noticed this code snippet in the Step 4:
+```ts
+process.env.API_ENDPOINT || "http://locahost:3000"
+```
+You have different addresses for your API, depending on which environment your on:
+- your machine (a.k.a local host): http://localhost:3000
+- production host (ScaleWay machine): https://api.groupeXX.arla-sigl.fr
 
 How to adapt your build to have the correct endpoint depending on which environment you're on?
 
 You need to use environment variable.
 
-Your frontend code is built on:
+to have the correct `API_ENDPOINT`, adapt your webpack config, by adding those changes: 
+```js
+// inside frontend
+// ./webpack.config.js
+const path = require("path");
+const webpack = require("webpack");
+// ...
 
-- your local machine when developping
-- on github action when deploying
+module.exports = env => ({
+  //...,
+  plugins: [
+    //...
+    new webpack.DefinePlugin({
+      'process.env.API_ENDPOINT': JSON.stringify(env?.API_ENDPOINT || "http://localhost:3000"),
+    })
+  ]
+});
+```
 
-to have the correct `API_ENDPOINT`, adapt your webpack config like here: https://github.com/ffauchille/arla-group-11/blob/master/frontend/webpack.config.js
+You are using a webpack plugin to inject an environment variable **when webpack will build your project**.
+
+Because your frontend code is **static** and cannot change once compile.
+
+Just adapt your `build` script in your `package.json` to set the correct variable:
+```json
+// inside frontend/
+// ./package.json
+{
+  "name": "arlaide-frontend",
+  // ...
+  "scripts": {
+    "build": "webpack --mode production --env.API_ENDPOINT=https://api.groupeXX.arla-sigl.fr",
+    "start": "webpack-dev-server --open"  
+  },
+  //...
+}
+```
+
+Then, when you will use:
+- `npm start`: `API_ENDPOINT` will not be define and be default to `http://localhost:3000`
+- `npm run build`: `API_ENDPOINT` will be set to `https://api.groupeXX.arla-sigl.fr`
 
 ## Step 6: Use permissions to have 2 different profiles of users
 
-This will be shown in class.
+The aim is to use the `Auth0` permissions to restrict access to some service to some users. 
+
+This kind of segregation of users is very common in software. Think about any product following the Freemium business model, where you have free users and premium users. Premium users having access to more functionnalities and content that free users.
+
+Here is what we want to achieve:
+- Login with one premium user, and have access to see other user's profile
+- Login with one non-premium user, and instead of having access to other user's profile, she/he sees an offer to become a premium member.
+
+### Setup permission in Auth0
+
+First step is to define `permissions` in your Auth0's dashboard.
+From the API settings you've created:
+- navigate to the `permission` tab, and create a new `profiles:full-access` permission, and as description `Allow user to see other user profiles`.
+- navigate to the `settings` tab, and enable RBAC and Access settings as follow:
+
+![rbac-settings](img/rbac-api-settings.png)
+
+### Create a new service to return user permissions
+
+In order to display content based on user permissions in the frontend, we need to know what permissions a user has.
+
+To do so, you will create a new service in your web API `/v1/permissions` that returns the user permissions:
+```ts
+// from your api/
+// ./src/server.ts
+
+app.get(
+  "/v1/permissions",
+  jwtCheck,
+  (request: express.Request, response: express.Response) => {
+    try {
+      const permissions: string[] = (request as any)?.user?.permissions || [];
+      response.send(permissions);
+    } catch (error) {
+      console.log(error);
+      response.statusCode = 500;
+      response.send({ error });
+    }
+  }
+);
+```
+
+This service will return the user permissions. In fact, everything is done by the `jwtCheck` middleware. It decodes the JWT and set the `permission` field in the `request` parameter.
+Our service just have to return those permissions, or an error if they can't be found (could be cause by a misconfiguration of your API in Auth0)
+
+### Keep user permissions in your frontend context
+
+Now that you have created the web API, let's consume it from the frontend.
+
+We want the user permissions inside the machine context, sothat they can be use by every components. This will give you flexibity to renders some content, depending on some permissions the user has or hasn't.
+
+To do so, you need:
+1. a new `permissions` value in your machine context
+1. a new `Event` triggered when you will have your permissions from the web api
+1. a new `Action` that will assign permissions in your machine context.
+1. A new component to call the permisson API you've created and send permissons to the machine context. 
+
+1. Add `permissons` to your machine context:
+````
+```
+
+Let's modify the `Authentication.tsx` file of your frontend a new component that will save the user permissions:
+```tsx
+// inside frontend
+// ./src/components/Authenticated.tsx
+const WithPermissions: React.FC<WithPermissionsProps> = ({ authToken, children }) => {
+  const { machine, send } = React.useContext(TemplateMachineContext);
+  const { permissions } = machine.context;
+
+  React.useEffect(() => {
+    const getClaims = async () => {
+      try {
+        const userPermissions = await callApi(authToken)(`/v1/permissions`);
+        send({
+          type: TemplateEvents.setUserPermissions,
+          permissions: userPermissions,
+        });
+      } catch (error) {
+        console.log("Error getting user permissions: ", error);
+      }
+    };
+    getClaims();
+  }, []);
+
+  return permissions === undefined ? <Loading /> : <>{children}</>;
+};
+```
+
+### Create a new service to get other user's profile, restricted to premium users
+
+### Integrate other user's profile service to the frontend
+
