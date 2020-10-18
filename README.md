@@ -224,6 +224,7 @@ Create a new API in Auth0:
 From your `api/` code, adapt with the code Auth0 provides in its QuickStart > NodeJS section:
 
 - install dependencies
+
 ```sh
 # from api/
 nvm use
@@ -264,6 +265,7 @@ app.get(
 That's it! You've secured your API. `jwtCheck` is a middleware that will check if the `Bearer` token is valid.
 
 You can try out to curl your API again, you should get an `Unauthorized` message:
+
 ```sh
 curl http://localhost:3000/v1/help-request?page=1&limit=10
 # You should get an HTML containing:
@@ -271,6 +273,7 @@ curl http://localhost:3000/v1/help-request?page=1&limit=10
 ```
 
 And if you wanna verify if giving a fake token would work, you can try (and make sure it fails!):
+
 ```sh
 curl -H "Authorization: Bearer AFakeT0kenThatMeansNothingButIAmStillTrying" http://localhost:3000/v1/help-request?page=1&limite=10
 # You should get an HTML containing:
@@ -302,12 +305,14 @@ Sofar, you've been using `curl` to consume your web API.
 In this section, you will consume your web API from your frontend code.
 
 What you need to do:
+
 - create your api call using [fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch)
 - call your API from a component
 
 ### Create your api call
 
 Because you will use it at several places, you will create a seperate function to call any API route:
+
 ```ts
 // From a new file inside frontend
 // e.g. ./src/utils/api.ts
@@ -326,10 +331,10 @@ export const callApi = (token?: string) => async (route: string) => {
 ```
 
 You are wrapping the `fetch` usage to make sure you're not forgetting the `Bearer` token.
-This is a curry function that you can call like 
+This is a curry function that you can call like
 
 ```ts
-callApi("<access_token>")('/v1/help-requests?page=1&limit=10')
+callApi("<access_token>")("/v1/help-requests?page=1&limit=10");
 ```
 
 You may have noticed `async` and `await` keywords. It's syntaxic sugar to replace many chain callbacks using the classic promise's `then` and `catch` keyword.
@@ -338,7 +343,7 @@ Here is the version, totally identical, using `Promises`:
 
 ```ts
 // ...
-const API_ENDPOINT = process.env.API_ENDPOINT || 'http://localhost:3000';
+const API_ENDPOINT = process.env.API_ENDPOINT || "http://localhost:3000";
 
 export const callApi = (token?: string) => (route: string): Promise<any> => {
   if (token) {
@@ -346,7 +351,7 @@ export const callApi = (token?: string) => (route: string): Promise<any> => {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }).then(response => response.json())
+    }).then((response) => response.json());
   } else throw new Error("no auth token");
 };
 ```
@@ -392,7 +397,9 @@ export const TemplateView2: React.FC = () => {
       </Grid>
       <Grid item xs={12}>
         {error ? (
-          <ClosableError onClickClose={() => setError(undefined)}>Something went wrong on our side...</ClosableError>
+          <ClosableError onClickClose={() => setError(undefined)}>
+            Something went wrong on our side...
+          </ClosableError>
         ) : (
           <HelpRequestTable helpRequests={helpRequests} />
         )}
@@ -403,6 +410,7 @@ export const TemplateView2: React.FC = () => {
 ```
 
 Where `HelpRequestTable` component is:
+
 ```tsx
 const HelpRequestTable: React.FC<HelpRequestTableProps> = ({
   helpRequests,
@@ -433,9 +441,14 @@ const HelpRequestTable: React.FC<HelpRequestTableProps> = ({
   );
 };
 ```
+
 And `ClosableError` component is:
+
 ```tsx
-const ClosableError: React.FC<ClosableErrorProps> = ({ onClickClose, children }) => (
+const ClosableError: React.FC<ClosableErrorProps> = ({
+  onClickClose,
+  children,
+}) => (
   <Alert
     severity="error"
     action={
@@ -460,13 +473,13 @@ Once setted, navigate to view 2 and click on the `Load requests` button:
 You can inspect your page and check `Network` tab. You should see your API call (as a XHR request) when clicking on the button. Inside the header of the request, you should see the access token in the request's header `Authorization: Bearer <YOUR ACCESS TOKEN>`:
 ![inspect-bearer](img/bearer-in-request.gif)
 
-
 > Note: by copying this Access token from the http call, you can try out again with curl, and see that it works:
-`curl -H "Authorization: Bearer <YOUR ACCESS TOKEN>" http://localhost:3000/v1/help-request\?page\=1\&limit\=10 `
+> `curl -H "Authorization: Bearer <YOUR ACCESS TOKEN>" http://localhost:3000/v1/help-request\?page\=1\&limit\=10 `
 
 Now, you may have notice that the your new `TemplateView2` component is also handling errors.
 
 Let's `throw` an error inside the `try` clause of `getHelpRequests` function, to check how the error handling behaves:
+
 ```tsx
 // from frontend
 // e.g. src/components/TemplateView2.tsx
@@ -483,19 +496,23 @@ export const TemplateView2: React.FC = () => {
     }
   };
 
-  return // ...
+  return; // ...
 };
 ```
+
 The `throw new Error("BOOM!");` should now change the behaviour when user clicks on `Load Requests` button:
 ![error-handling](img/error-handling.gif)
 
 ## Step 5: Adapt your build for production
 
 You may have noticed this code snippet in the Step 4:
+
 ```ts
-process.env.API_ENDPOINT || "http://locahost:3000"
+process.env.API_ENDPOINT || "http://locahost:3000";
 ```
+
 You have different addresses for your API, depending on which environment your on:
+
 - your machine (a.k.a local host): http://localhost:3000
 - production host (ScaleWay machine): https://api.groupeXX.arla-sigl.fr
 
@@ -503,7 +520,8 @@ How to adapt your build to have the correct endpoint depending on which environm
 
 You need to use environment variable.
 
-to have the correct `API_ENDPOINT`, adapt your webpack config, by adding those changes: 
+to have the correct `API_ENDPOINT`, adapt your webpack config, by adding those changes:
+
 ```js
 // inside frontend
 // ./webpack.config.js
@@ -511,14 +529,16 @@ const path = require("path");
 const webpack = require("webpack");
 // ...
 
-module.exports = env => ({
+module.exports = (env) => ({
   //...,
   plugins: [
     //...
     new webpack.DefinePlugin({
-      'process.env.API_ENDPOINT': JSON.stringify(env?.API_ENDPOINT || "http://localhost:3000"),
-    })
-  ]
+      "process.env.API_ENDPOINT": JSON.stringify(
+        env?.API_ENDPOINT || "http://localhost:3000"
+      ),
+    }),
+  ],
 });
 ```
 
@@ -527,6 +547,7 @@ You are using a webpack plugin to inject an environment variable **when webpack 
 Because your frontend code is **static** and cannot change once compile.
 
 Just adapt your `build` script in your `package.json` to set the correct variable:
+
 ```json
 // inside frontend/
 // ./package.json
@@ -535,23 +556,27 @@ Just adapt your `build` script in your `package.json` to set the correct variabl
   // ...
   "scripts": {
     "build": "webpack --mode production --env.API_ENDPOINT=https://api.groupeXX.arla-sigl.fr",
-    "start": "webpack-dev-server --open"  
-  },
+    "start": "webpack-dev-server --open"
+  }
   //...
 }
 ```
 
 Then, when you will use:
+
 - `npm start`: `API_ENDPOINT` will not be define and be default to `http://localhost:3000`
 - `npm run build`: `API_ENDPOINT` will be set to `https://api.groupeXX.arla-sigl.fr`
 
+You can try to push and see if you can reach your api once deploy.
+
 ## Step 6: Use permissions to have 2 different profiles of users
 
-The aim is to use the `Auth0` permissions to restrict access to some service to some users. 
+The aim is to use the `Auth0` permissions to restrict access to some service to some users.
 
 This kind of segregation of users is very common in software. Think about any product following the Freemium business model, where you have free users and premium users. Premium users having access to more functionnalities and content that free users.
 
 Here is what we want to achieve:
+
 - Login with one premium user, and have access to see other user's profile
 - Login with one non-premium user, and instead of having access to other user's profile, she/he sees an offer to become a premium member.
 
@@ -559,6 +584,7 @@ Here is what we want to achieve:
 
 First step is to define `permissions` in your Auth0's dashboard.
 From the API settings you've created:
+
 - navigate to the `permission` tab, and create a new `profiles:full-access` permission, and as description `Allow user to see other user profiles`.
 - navigate to the `settings` tab, and enable RBAC and Access settings as follow:
 
@@ -569,6 +595,7 @@ From the API settings you've created:
 In order to display content based on user permissions in the frontend, we need to know what permissions a user has.
 
 To do so, you will create a new service in your web API `/v1/permissions` that returns the user permissions:
+
 ```ts
 // from your api/
 // ./src/server.ts
@@ -601,12 +628,14 @@ We want the user permissions inside the machine context, sothat they can be use 
 This will give you flexibity to renders some content, depending on some permissions the user has or hasn't.
 
 To do so, you need:
+
 1. a new `permissions` value in your machine context
 1. a new `Event` triggered when you will have your permissions from the web api
 1. a new `Action` that will assign permissions in your machine context.
-1. A new component to call the permisson API you've created and send permissons to the machine context. 
+1. A new component to call the permisson API you've created and send permissons to the machine context.
 
 1. Add `permissons` to your machine context:
+
 ```ts
 // from frontend
 // ./src/state/machine.tsx
@@ -617,7 +646,9 @@ export type TemplateContext = {
 };
 //...
 ```
+
 2. Create a new `Event` called `SetUserPermissionsEvent`
+
 ```ts
 export enum TemplateEvents {
   toView1 = "TO_VIEW_1",
@@ -650,35 +681,38 @@ export const createTemplateStateMachine = () => {
     { actions: allActions }
   );
 ```
+
 3. Create a new `action` called `updateUserPermissions` with its assign function:
+
 ```ts
 //...
 export enum TemplateActions {
   //...
-  updatePermissions = "updatePermissions"
+  updatePermissions = "updatePermissions",
 }
 
 //...
 
 const assignPermissions = assign<TemplateContext, SetUserPermissions>({
-  permissions: (_, event) => event.permissions
-})
+  permissions: (_, event) => event.permissions,
+});
 
 // Set all your actions there, and they will be added to your machine
 export const allActions: any = {
   //...
-  [TemplateActions.updatePermissions]: assignPermissions
+  [TemplateActions.updatePermissions]: assignPermissions,
 };
 ```
 
 4. Let's modify the `Authentication.tsx` file of your frontend a new component that will save the user permissions:
+
 ```tsx
 // inside frontend
 // ./src/components/Authenticated.tsx
 const WithPermissions: React.FC = ({ children }) => {
   const { machine, send } = React.useContext(TemplateMachineContext);
   const { permissions } = machine.context;
-  const {getAccessTokenSilently} = useAuth0();
+  const { getAccessTokenSilently } = useAuth0();
 
   React.useEffect(() => {
     const getClaims = async () => {
@@ -700,10 +734,13 @@ const WithPermissions: React.FC = ({ children }) => {
 };
 
 export const Authenticated: React.FC = ({ children }) => {
-
   //...
 
-  return isLoading ? <Loading /> : <WithPermissions>{children}</WithPermissions>;
+  return isLoading ? (
+    <Loading />
+  ) : (
+    <WithPermissions>{children}</WithPermissions>
+  );
 };
 ```
 
@@ -714,6 +751,7 @@ Now, let's write one component that will display `You're premium!` only if your 
 First, let's create a third view.
 
 1. Adapt your machine:
+
 ```tsx
 // from frontend
 // ./src/state/machine.tsx
@@ -754,16 +792,16 @@ export const createTemplateStateMachine = () => {
     { actions: allActions }
   );
 };
-
 ```
 
 2. Update your `TemplateNavigation` component, by adding the view3 and adapt the selection logic:
+
 ```tsx
 //...
 
 export const TemplateNavigation = () => {
   //...
-  
+
   let tabSelected = 0;
   if (machine.matches(TemplateStates.view2)) tabSelected = 1;
   else if (machine.matches(TemplateStates.view3)) tabSelected = 2;
@@ -801,7 +839,6 @@ import Button from "@material-ui/core/Button";
 import React from "react";
 import { TemplateMachineContext } from "../state/provider";
 
-
 const GoPremium: React.FC = () => {
   return (
     <Button variant="outlined" color="primary" onClick={() => {}}>
@@ -820,12 +857,14 @@ export const TemplateView3: React.FC = () => {
 ```
 
 You can see that TemplateView3 components reads user permissions from the state machine context, without having to pass it to the component's properties. Thanks to those two lines
+
 ```ts
-  const { machine } = React.useContext(TemplateMachineContext);
-  const { permissions } = machine.context;
+const { machine } = React.useContext(TemplateMachineContext);
+const { permissions } = machine.context;
 ```
 
 4. Add the `TemplateView3` to the `app.tsx`, by replacing the `TemplateContent` component with:
+
 ```tsx
 const TemplateContent = () => {
   const { machine } = React.useContext(TemplateMachineContext);
@@ -844,6 +883,7 @@ You should be all set!
 Let's try out your changes.
 
 From the Auth0 dashboard > Users & Role > User, create 2 users using the `+ CREATE USER` button:
+
 - name one premium user (e.g. premium@test.com )
   - assign this user `profile:full-access` permissions from the created API in previous step.
 - name one non-premium user (e.g. not-premium@test.com)
@@ -857,6 +897,264 @@ Congrats!
 
 ### Create a new service to get other user's profile, restricted to premium users
 
+Now, let's create a new service in your web API that is only available for premium users.
+
+From your API code, you will need to:
+
+- create a new express middleware that checks for permissions
+- create a new service using this middleware
+
+For this workshop, you will create a new service that returns other user's profile.
+
+From your api, let's create a new express middleware function that checks user permissions:
+
+```ts
+/**
+ * Checks if user has all permissions in parameter. If not all permissions are matched,
+ * user is unauthorized.s
+ * @param permissions permissions users needs to have to be authorized
+ */
+const permissionContains = (permissions: string[]) => (
+  request: express.Request,
+  response: express.Response,
+  next: express.NextFunction
+) => {
+  const userPermissions: string[] = (request as any)?.user?.permissions;
+  const allIncluded = permissions.reduce(
+    (includeAll, p) => includeAll && userPermissions.includes(p),
+    true
+  );
+
+  if (allIncluded) {
+    next();
+  } else {
+    response.statusCode = 403;
+    response.send({ error: "not enough permissions" });
+  }
+};
+```
+
+The `permissionContains` function you've just created is an express middleware.
+
+You can use it like `jwtCheck`, by calling `permissionContains(['your:permission'])`.
+
+Now let's create a new user profile service using the middleware you've just created.
+
+This service will return a page of other user's profiles, still using our `FakeDB` singleton.
+
+First, create your fake data:
+
+```ts
+// inside api/
+// ./src/fake-data/user-profiles.ts
+export type UserProfile = {
+  id: string;
+  username: string;
+  job: string;
+};
+
+export const allUserProfiles: UserProfile[] = [
+  {
+    id: "U-1",
+    username: "florent.fauchille",
+    job: "developer",
+  },
+  {
+    id: "U-2",
+    username: "lucas.boisserie",
+    job: "devops",
+  },
+];
+```
+
+Create the method in `FakeDB` to get a page of user profile, by replacing the whole content by:
+
+```ts
+import { allHelpRequests, HelpRequest } from "./fake-data/help-requests";
+import { allUserProfiles, UserProfile } from "./fake-data/user-profiles";
+
+/**
+ * Fake database, since we don't want to set any real database yet.
+ * This will be subject of next workshop
+ */
+export namespace FakeDB {
+  // Private base help requests. This is restore
+  // on each start of the API.
+  var helpRequests: HelpRequest[] = allHelpRequests;
+  var userProfiles: UserProfile[] = allUserProfiles;
+
+  const getPage = <T>(arr: T[]) => (page: number, limit: number) => {
+    const start = (page - 1) * limit;
+    const end = start + limit;
+
+    return arr.slice(start, end);
+  };
+
+  // takes a slice of the help requests, based on page and limit offsets
+  export const getHelpRequest = (page: number, limit: number) => {
+    return getPage<HelpRequest>(helpRequests)(page, limit);
+  };
+
+  export const getUserProfiles = (page: number, limit: number) => {
+    return getPage<UserProfile>(userProfiles)(page, limit);
+  };
+}
+```
+
+> Note: we did a small refactoring to void having 2 times same way of slicing an array of data from page and limit parameters
+
+Now, let's create the user profile service, from your `server.ts`:
+
+```ts
+// from api/
+// ./src/server.ts
+
+//...
+
+const isPremium: express.RequestHandler = permissionContains([
+  profilesFullAccess,
+]);
+
+app.get(
+  "/v1/user-profile",
+  jwtCheck,
+  isPremium,
+  (request: express.Request, response: express.Response): void => {
+    try {
+      const { page, limit } = extractPageOptions(request);
+      const userProfiles: UserProfile[] = FakeDB.getUserProfiles(page, limit);
+      response.send(userProfiles);
+    } catch (e) {
+      response.statusCode = 500;
+      response.send({ error: e.message });
+    }
+  }
+);
+// ...
+```
+
+Now you're all set! You've just created a new service, restricted to premium users.
 
 ### Integrate other user's profile service to the frontend
+
+Now, let's integrate this service to the frontend.
+
+What you will do:
+
+1. call the service to get other user profiles, when a user is premium
+1. create a small component to display user profiles
+
+Let's modify the `TemplateView3` component, the whole file should look like:
+
+```ts
+import { useAuth0 } from "@auth0/auth0-react";
+import { Grid } from "@material-ui/core";
+import Button from "@material-ui/core/Button";
+import Card from "@material-ui/core/Card";
+import CardActionArea from "@material-ui/core/CardActionArea";
+import CardActions from "@material-ui/core/CardActions";
+import CardContent from "@material-ui/core/CardContent";
+import CardMedia from "@material-ui/core/CardMedia";
+import { makeStyles } from "@material-ui/core/styles";
+import Typography from "@material-ui/core/Typography";
+import React from "react";
+import { TemplateMachineContext } from "../state/provider";
+import { callApi } from "../utils/api";
+
+const useStyles = makeStyles({
+  root: {
+    maxWidth: 345,
+  },
+  media: {
+    height: 140,
+  },
+});
+
+const GoPremium: React.FC = () => {
+  return (
+    <Button variant="outlined" color="primary" onClick={() => {}}>
+      Get premium access today!
+    </Button>
+  );
+};
+
+type ProfileCardProps = {
+  username: string;
+  job: string;
+};
+
+const ProfileCard: React.FC<ProfileCardProps> = ({ username, job }) => {
+  const classes = useStyles();
+
+  return (
+    <Card className={classes.root}>
+      <CardActionArea>
+        <CardMedia
+          className={classes.media}
+          image="https://upload.wikimedia.org/wikipedia/commons/e/e4/Elliot_Grieveson.png"
+        />
+        <CardContent>
+          <Typography gutterBottom variant="h5" component="h2">
+            {username}
+          </Typography>
+          <Typography variant="body2" color="textSecondary" component="p">
+            {job}
+          </Typography>
+        </CardContent>
+      </CardActionArea>
+      <CardActions>
+        <Button size="small" color="primary">
+          Contact
+        </Button>
+        <Button size="small" color="secondary">
+          See activities
+        </Button>
+      </CardActions>
+    </Card>
+  );
+};
+
+const UserProfiles: React.FC = () => {
+  const [userProfiles, setUserProfiles] = React.useState<any[]>([]);
+  const { getAccessTokenSilently } = useAuth0();
+
+  const getUserProfiles = async () => {
+    const authToken = await getAccessTokenSilently();
+    const data = await callApi(authToken)("/v1/user-profile?page=1&limit=10");
+    setUserProfiles(data);
+  };
+
+  return (
+    <Grid container spacing={6}>
+      <Grid item xs={12}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => getUserProfiles()}
+        >
+          Load user profiles
+        </Button>
+      </Grid>
+      {(userProfiles as any[]).map((userProfile, index) => (
+        <Grid key={index} item xs={4}>
+          <ProfileCard username={userProfile.username} job={userProfile.job} />
+        </Grid>
+      ))}
+    </Grid>
+  );
+};
+
+export const TemplateView3: React.FC = () => {
+  const { machine } = React.useContext(TemplateMachineContext);
+  const { permissions } = machine.context;
+  const canReadProfile = permissions?.includes("profiles:full-access");
+
+  return canReadProfile ? <UserProfiles /> : <GoPremium />;
+};
+```
+
+Now try out yourself with your premium user, and you should see the other user profiles. Congratulation!
+
+![premium-other-user-profiles](img/premium-other-user-profile.gif)
+
 
