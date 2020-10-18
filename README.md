@@ -596,7 +596,9 @@ Our service just have to return those permissions, or an error if they can't be 
 
 Now that you have created the web API, let's consume it from the frontend.
 
-We want the user permissions inside the machine context, sothat they can be use by every components. This will give you flexibity to renders some content, depending on some permissions the user has or hasn't.
+We want the user permissions inside the machine context, sothat they can be use by every components without having to pass it by `props` everytime.
+
+This will give you flexibity to renders some content, depending on some permissions the user has or hasn't.
 
 To do so, you need:
 1. a new `permissions` value in your machine context
@@ -605,20 +607,83 @@ To do so, you need:
 1. A new component to call the permisson API you've created and send permissons to the machine context. 
 
 1. Add `permissons` to your machine context:
-````
+```ts
+// from frontend
+// ./src/state/machine.tsx
+//...
+export type TemplateContext = {
+  //...
+  permissions?: string[];
+};
+//...
+```
+2. Create a new `Event` called `SetUserPermissionsEvent`
+```ts
+export enum TemplateEvents {
+  toView1 = "TO_VIEW_1",
+  //...
+  setUserPermissions = "SET_USER_PERMISSIONS",
+}
+
+//...
+
+export type SetUserPermissions = {
+  type: TemplateEvents.setUserPermissions;
+  permissions: string[];
+};
+
+//...
+
+export const createTemplateStateMachine = () => {
+  return Machine<TemplateContext>(
+    {
+      id: "template",
+      //...
+      on: {
+        [TemplateEvents.toView1]: TemplateStates.view1,
+        //...
+        [TemplateEvents.setUserPermissions]: {
+          actions: [TemplateActions.updatePermissions],
+        },
+      },
+    },
+    { actions: allActions }
+  );
+```
+3. Create a new `action` called `updateUserPermissions` with its assign function:
+```ts
+//...
+export enum TemplateActions {
+  //...
+  updatePermissions = "updatePermissions"
+}
+
+//...
+
+const assignPermissions = assign<TemplateContext, SetUserPermissions>({
+  permissions: (_, event) => event.permissions
+})
+
+// Set all your actions there, and they will be added to your machine
+export const allActions: any = {
+  //...
+  [TemplateActions.updatePermissions]: assignPermissions
+};
 ```
 
-Let's modify the `Authentication.tsx` file of your frontend a new component that will save the user permissions:
+4. Let's modify the `Authentication.tsx` file of your frontend a new component that will save the user permissions:
 ```tsx
 // inside frontend
 // ./src/components/Authenticated.tsx
-const WithPermissions: React.FC<WithPermissionsProps> = ({ authToken, children }) => {
+const WithPermissions: React.FC = ({ children }) => {
   const { machine, send } = React.useContext(TemplateMachineContext);
   const { permissions } = machine.context;
+  const {getAccessTokenSilently} = useAuth0();
 
   React.useEffect(() => {
     const getClaims = async () => {
       try {
+        const authToken = await getAccessTokenSilently();
         const userPermissions = await callApi(authToken)(`/v1/permissions`);
         send({
           type: TemplateEvents.setUserPermissions,
@@ -633,9 +698,165 @@ const WithPermissions: React.FC<WithPermissionsProps> = ({ authToken, children }
 
   return permissions === undefined ? <Loading /> : <>{children}</>;
 };
+
+export const Authenticated: React.FC = ({ children }) => {
+
+  //...
+
+  return isLoading ? <Loading /> : <WithPermissions>{children}</WithPermissions>;
+};
 ```
 
+### Create a first component for premium users only
+
+Now, let's write one component that will display `You're premium!` only if your user has `profile:full-access` permission, or will display `GET PREMIUM ACCESS TODAY` button otherwise.
+
+First, let's create a third view.
+
+1. Adapt your machine:
+```tsx
+// from frontend
+// ./src/state/machine.tsx
+//...
+export enum TemplateStates {
+  view1 = "view1",
+  view2 = "view2",
+  view3 = "view3",
+  //...
+}
+
+export enum TemplateEvents {
+  toView1 = "TO_VIEW_1",
+  toView2 = "TO_VIEW_2",
+  toView3 = "TO_VIEW_3",
+  //...
+}
+
+export const createTemplateStateMachine = () => {
+  return Machine<TemplateContext>(
+    {
+      id: "template",
+      initial: TemplateStates.view1,
+      //...
+      states: {
+        [TemplateStates.view1]: {},
+        [TemplateStates.view2]: {},
+        [TemplateStates.view3]: {},
+        //...
+      },
+      on: {
+        [TemplateEvents.toView1]: TemplateStates.view1,
+        [TemplateEvents.toView2]: TemplateStates.view2,
+        [TemplateEvents.toView3]: TemplateStates.view3,
+        //...
+      },
+    },
+    { actions: allActions }
+  );
+};
+
+```
+
+2. Update your `TemplateNavigation` component, by adding the view3 and adapt the selection logic:
+```tsx
+//...
+
+export const TemplateNavigation = () => {
+  //...
+  
+  let tabSelected = 0;
+  if (machine.matches(TemplateStates.view2)) tabSelected = 1;
+  else if (machine.matches(TemplateStates.view3)) tabSelected = 2;
+
+  return (
+    <Grid container spacing={5}>
+      <Grid item xs={12}>
+        <Tabs
+          centered
+          value={tabSelected}
+          onChange={(_, idx) => {
+            let nextView = TemplateEvents.toView1;
+            if (idx === 1) nextView = TemplateEvents.toView2;
+            else if (idx === 2) nextView = TemplateEvents.toView3;
+            send(nextView);
+          }}
+          indicatorColor="primary"
+          textColor="primary"
+          aria-label="disabled tabs example"
+        >
+          <Tab label="View 1" />
+          <Tab label="View 2" />
+          <Tab label="View 3" />
+        </Tabs>
+      </Grid>
+    </Grid>
+  );
+};
+```
+
+3. Create a new `TemplateView3` component with the conditionnal rendering on permissions:
+
+```tsx
+import Button from "@material-ui/core/Button";
+import React from "react";
+import { TemplateMachineContext } from "../state/provider";
+
+
+const GoPremium: React.FC = () => {
+  return (
+    <Button variant="outlined" color="primary" onClick={() => {}}>
+      Get premium access today!
+    </Button>
+  );
+};
+
+export const TemplateView3: React.FC = () => {
+  const { machine } = React.useContext(TemplateMachineContext);
+  const { permissions } = machine.context;
+  const canReadProfile = permissions?.includes("profiles:full-access");
+
+  return canReadProfile ? <span>You're premium!</span> : <GoPremium />;
+};
+```
+
+You can see that TemplateView3 components reads user permissions from the state machine context, without having to pass it to the component's properties. Thanks to those two lines
+```ts
+  const { machine } = React.useContext(TemplateMachineContext);
+  const { permissions } = machine.context;
+```
+
+4. Add the `TemplateView3` to the `app.tsx`, by replacing the `TemplateContent` component with:
+```tsx
+const TemplateContent = () => {
+  const { machine } = React.useContext(TemplateMachineContext);
+  let Content = <Typography>Nothing to display</Typography>;
+  if (machine.matches(TemplateStates.view1))
+    Content = <TemplateView1 project="Arlaide" />;
+  else if (machine.matches(TemplateStates.view2)) Content = <TemplateView2 />;
+  else if (machine.matches(TemplateStates.view3)) Content = <TemplateView3 />;
+
+  return Content;
+};
+```
+
+You should be all set!
+
+Let's try out your changes.
+
+From the Auth0 dashboard > Users & Role > User, create 2 users using the `+ CREATE USER` button:
+- name one premium user (e.g. premium@test.com )
+  - assign this user `profile:full-access` permissions from the created API in previous step.
+- name one non-premium user (e.g. not-premium@test.com)
+  - don't assign this user any permissions
+
+Now, let's login with the premium user to your app, you should see in the `view 3` the `You're premium!` message.
+
+Logout, and login with the non-premium user. You should see in the `view 3` the button to become a premium member.
+
+Congrats!
+
 ### Create a new service to get other user's profile, restricted to premium users
+
 
 ### Integrate other user's profile service to the frontend
 
